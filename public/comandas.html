@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Comandas | Sistema de Gestión</title>
+    <!-- Modern typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="toast-container" class="toast-container"></div>
+    <header>
+        <h1>Mi Turno</h1>
+        <div id="status-indicador">🔴 Offline</div>
+    </header>
+
+    <main class="mobile-container">
+        <h2 class="section-title">Mapa de Mesas</h2>
+        <div class="mesas-grid" id="mesas-container">
+            <!-- Renderizado dinámicamente desde app.js -->
+        </div>
+
+        <section class="menu-section" id="menu-section">
+            <h2 class="section-title">Menú - Mesa <span id="mesa-activa-label"></span></h2>
+            <div id="cuenta-previa" style="margin-bottom: 1rem; padding: 1rem; background: var(--secondary-ui); border-radius: 8px; display: none;"></div>
+            <div id="productos-container">
+                <!-- Renderizado dinámicamente desde app.js -->
+            </div>
+        </section>
+    </main>
+
+    <div class="floating-cart" id="floating-cart">
+        <div>
+            <span style="opacity: 0.8; font-size: 0.9rem;">Total (Mesa <span id="cart-mesa-label"></span>)</span>
+            <div style="font-size: 1.25rem; font-weight: bold;">$<span id="cart-total">0.00</span></div>
+        </div>
+        <button class="enviar-comanda-btn" id="btn-enviar-comanda">Enviar Orden</button>
+    </div>
+
+    <!-- Cargar lógica principal -->
+    <script src="app.js"></script>
+    <script>
+        // Validar que no se este usando en pantalla grande por error
+        if (window.innerWidth >= 768) {
+            console.warn("Estás en vista de escritorio. Redirigiendo a admin...");
+            window.location.href = 'admin.html';
+        }
+    </script>
+</body>
+</html>

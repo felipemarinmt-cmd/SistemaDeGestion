@@ -1,0 +1,173 @@
+{
+  "mesas": [
+    {
+      "id": 1,
+      "numero": 1,
+      "estado": "Disponible"
+    },
+    {
+      "id": 2,
+      "numero": 2,
+      "estado": "Disponible"
+    },
+    {
+      "id": 3,
+      "numero": 3,
+      "estado": "Disponible"
+    },
+    {
+      "id": 4,
+      "numero": 4,
+      "estado": "Disponible"
+    },
+    {
+      "id": 5,
+      "numero": 5,
+      "estado": "Disponible"
+    },
+    {
+      "id": 6,
+      "numero": 6,
+      "estado": "Disponible"
+    }
+  ],
+  "menu": [
+    {
+      "id": 1,
+      "nombre": "Hamburguesa Sencilla",
+      "precio": 5
+    },
+    {
+      "id": 2,
+      "nombre": "Hamburguesa Doble",
+      "precio": 7.5
+    },
+    {
+      "id": 3,
+      "nombre": "Papas Fritas",
+      "precio": 2.5
+    },
+    {
+      "id": 4,
+      "nombre": "Gaseosa",
+      "precio": 1.5
+    },
+    {
+      "id": 5,
+      "nombre": "Cerveza",
+      "precio": 3
+    },
+    {
+      "id": 6,
+      "nombre": "Tacos Premium",
+      "precio": 12.5
+    },
+    {
+      "id": 7,
+      "nombre": "Carne asada",
+      "precio": 30
+    }
+  ],
+  "comandas": [
+    {
+      "id": 1,
+      "mesaId": 1,
+      "items": [
+        {
+          "id": 1,
+          "nombre": "Hamburguesa Sencilla",
+          "precio": 5
+        },
+        {
+          "id": 2,
+          "nombre": "Hamburguesa Doble",
+          "precio": 7.5
+        },
+        {
+          "id": 3,
+          "nombre": "Papas Fritas",
+          "precio": 2.5
+        }
+      ],
+      "total": 15,
+      "fecha": "2026-03-26T04:14:49.800Z",
+      "activa": false
+    },
+    {
+      "id": 2,
+      "mesaId": 1,
+      "items": [
+        {
+          "id": 1,
+          "nombre": "Hamburguesa Sencilla",
+          "precio": 5
+        },
+        {
+          "id": 2,
+          "nombre": "Hamburguesa Doble",
+          "precio": 7.5
+        },
+        {
+          "id": 3,
+          "nombre": "Papas Fritas",
+          "precio": 2.5
+        }
+      ],
+      "total": 15,
+      "fecha": "2026-03-26T05:04:38.638Z",
+      "activa": false
+    },
+    {
+      "id": 3,
+      "mesaId": 2,
+      "items": [
+        {
+          "id": 3,
+          "nombre": "Papas Fritas",
+          "precio": 2.5
+        },
+        {
+          "id": 4,
+          "nombre": "Gaseosa",
+          "precio": 1.5
+        }
+      ],
+      "total": 4,
+      "fecha": "2026-03-26T05:04:42.910Z",
+      "activa": false
+    },
+    {
+      "id": 4,
+      "mesaId": 3,
+      "items": [
+        {
+          "id": 3,
+          "nombre": "Papas Fritas",
+          "precio": 2.5
+        },
+        {
+          "id": 4,
+          "nombre": "Gaseosa",
+          "precio": 1.5
+        }
+      ],
+      "total": 4,
+      "fecha": "2026-03-26T05:05:00.520Z",
+      "activa": false
+    },
+    {
+      "id": 5,
+      "mesaId": 2,
+      "items": [
+        {
+          "id": 7,
+          "nombre": "Carne asada",
+          "precio": 30
+        }
+      ],
+      "total": 30,
+      "fecha": "2026-03-26T05:05:53.248Z",
+      "activa": false
+    }
+  ]
+}
