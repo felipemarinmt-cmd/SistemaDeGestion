@@ -12,7 +12,9 @@
     <div id="toast-container" class="toast-container"></div>
     <header>
         <h1>Mi Turno</h1>
-        <div id="status-indicador">🔴 Offline</div>
+        <div id="status-indicador" style="display: flex; align-items: center; gap: 6px;">
+            <svg class="status-icon" width="10" height="10" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="#EF4444"/></svg> Offline
+        </div>
     </header>
 
     <main class="mobile-container">
@@ -23,6 +25,11 @@
 
         <section class="menu-section" id="menu-section">
             <h2 class="section-title">Menú - Mesa <span id="mesa-activa-label"></span></h2>
+            
+            <div class="category-filters" id="category-filters" style="display:none;">
+                <!-- Dinámico -->
+            </div>
+
             <div id="cuenta-previa" style="margin-bottom: 1rem; padding: 1rem; background: var(--secondary-ui); border-radius: 8px; display: none;"></div>
             <div id="productos-container">
                 <!-- Renderizado dinámicamente desde app.js -->
@@ -39,6 +46,7 @@
     </div>
 
     <!-- Cargar lógica principal -->
+    <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>
     <script>
         // Validar que no se este usando en pantalla grande por error

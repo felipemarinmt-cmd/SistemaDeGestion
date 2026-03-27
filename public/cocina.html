@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vista de Cocina - KDS</title>
+    <!-- Reutilizamos las variables base y la inyección de UI moderna -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="cocina.css">
+</head>
+<body class="kds-body">
+    <header class="kds-header">
+        <div class="kds-title">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <h2>Cocina en Vivo (KDS)</h2>
+        </div>
+        <div class="kds-status" id="status-indicador">Conectando...</div>
+    </header>
+
+    <main class="kds-board" id="board-tickets">
+        <!-- Tickets dinámicos -->
+    </main>
+
+    <div id="toast-container"></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="cocina.js"></script>
+</body>
+</html>

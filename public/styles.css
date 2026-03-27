@@ -46,8 +46,19 @@ body {
 .toast { background: rgba(38,38,38,0.9); backdrop-filter: blur(8px); color: white; padding: 1rem; border-radius: 12px; font-weight: 500; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; animation: slideDown 0.3s ease forwards; box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
 .toast.success { border-left: 4px solid #28a745; }
 .toast.error { border-left: 4px solid #d9534f; }
+
+.toast-icon-wrapper svg { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
 @keyframes slideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes slideUpFade { to { transform: translateY(-100%); opacity: 0; } }
+@keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+.pulse-anim { animation: pulseIcon 1.5s infinite; }
+@keyframes pulseIcon {
+    0% { transform: scale(0.95); opacity: 0.8; }
+    50% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(0.95); opacity: 0.8; }
+}
 
 
 /* Base Mobile Layout */
@@ -131,6 +142,33 @@ header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing:-0.5px; }
     box-shadow: 0 4px 10px rgba(63, 147, 166, 0.3); transition: transform 0.1s, background 0.2s;
 }
 .add-btn:active { transform: scale(0.85); background: #327a8a; }
+
+/* Controladores Stepper (+ y -) */
+.stepper-controls {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--glass-border); padding: 4px; border-radius: 14px;
+}
+.stepper-controls span { font-weight: 800; width: 20px; text-align: center; font-size: 1rem; }
+.stepper-btn {
+    background: var(--primary-action); color: white; border: none;
+    width: 34px; height: 34px; border-radius: 10px; font-size: 1.2rem; font-weight:bold;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2); transition: transform 0.1s;
+}
+.stepper-btn.minus { background: #d9534f; }
+.stepper-btn:active { transform: scale(0.85); }
+
+/* Category Chips */
+.category-filters {
+    display: flex; overflow-x: auto; gap: 0.5rem; padding-bottom: 0.5rem; margin-bottom: 1.25rem; scrollbar-width: none;
+}
+.category-filters::-webkit-scrollbar { display: none; }
+.chip {
+    background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-dark);
+    padding: 0.5rem 1rem; border-radius: 20px; font-weight: 700; font-size: 0.85rem;
+    white-space: nowrap; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.03); transition: all 0.2s ease;
+}
+.chip.active { background: var(--primary-action); color: white; border-color: var(--primary-hover); box-shadow: 0 4px 12px rgba(63, 147, 166, 0.3); }
 
 /* Carrito Flotante (Glassmorphism) */
 .floating-cart {

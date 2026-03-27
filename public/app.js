@@ -5,7 +5,12 @@ window.showToast = function(message, type = 'success') {
     if(!container) return alert(message);
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `<span>${type === 'success' ? '✅' : '🔴'}</span> ${message}`;
+    
+    // Iconos SVG para el toast
+    const iconSuccess = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+    const iconError = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`;
+    
+    toast.innerHTML = `<span class="toast-icon-wrapper" style="display:flex; align-items:center;">${type === 'success' ? iconSuccess : iconError}</span> <span>${message}</span>`;
     container.appendChild(toast);
     
     setTimeout(() => {
@@ -21,7 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
         menu: [],
         mesaSeleccionada: null,
         carritoActual: [], // Arreglo de { idProducto, nombre, precio, cantidad }
-        total: 0
+        total: 0,
+        categoriaSeleccionada: 'Todas'
     };
 
     // 2. Referencias a Elementos del DOM
@@ -37,10 +43,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 3. Inicialización
     async function init() {
-        statusIndicador.textContent = '🟡 Conectando...';
+        const iconConectando = `<svg class="status-icon pulse-anim" width="10" height="10" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="#EAB308"/></svg>`;
+        const iconActivo = `<svg class="status-icon" width="10" height="10" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="#22C55E"/></svg>`;
+        
+        statusIndicador.style.display = 'flex';
+        statusIndicador.style.alignItems = 'center';
+        statusIndicador.style.gap = '6px';
+        statusIndicador.innerHTML = `${iconConectando} Conectando...`;
+        
         await fetchDatosIniciales();
         renderMesas();
-        statusIndicador.textContent = '🟢 Activo';
+        
+        // Conexión WebSockets
+        const socket = io();
+        socket.on('connect', () => {
+            statusIndicador.innerHTML = `${iconActivo} Activo`;
+        });
+        socket.on('disconnect', () => {
+            statusIndicador.innerHTML = `${iconConectando} Re-conectando...`;
+        });
+        
+        socket.on('update_mesas', async () => {
+            const resMesas = await fetch('/api/mesas');
+            state.mesas = await resMesas.json();
+            renderMesas();
+            
+            // Si la vista de menú está activa y la mesa actual fue liberada por el admin
+            if (state.mesaSeleccionada) {
+                const mesaAct = state.mesas.find(m => m.id === state.mesaSeleccionada);
+                if (mesaAct && mesaAct.estado === 'Disponible') {
+                    const cuentaPreviaDiv = document.getElementById('cuenta-previa');
+                    if (cuentaPreviaDiv) cuentaPreviaDiv.style.display = 'none';
+                }
+            }
+        });
+        
+        socket.on('update_menu', async () => {
+            const resMenu = await fetch('/api/menu');
+            state.menu = await resMenu.json();
+            renderCategories();
+            renderMenu();
+        });
+        
+        socket.on('comanda_lista', (data) => {
+            showToast(`¡La orden de la Mesa ${data.mesa} está LISTA en cocina!`, 'success');
+        });
     }
 
     // Llamadas al backend API
@@ -86,25 +133,78 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function renderCategories() {
+        const filtersDiv = document.getElementById('category-filters');
+        filtersDiv.innerHTML = '';
+        const categorias = ['Todas', ...new Set(state.menu.map(m => m.categoria || 'Sin categoría'))];
+        
+        categorias.forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className = `chip ${state.categoriaSeleccionada === cat ? 'active' : ''}`;
+            btn.textContent = cat;
+            btn.addEventListener('click', () => {
+                state.categoriaSeleccionada = cat;
+                renderCategories();
+                renderMenu();
+            });
+            filtersDiv.appendChild(btn);
+        });
+        filtersDiv.style.display = 'flex';
+    }
+
     function renderMenu() {
         productosContainer.innerHTML = '';
-        state.menu.forEach(prod => {
+        const productosMostrados = state.categoriaSeleccionada === 'Todas' ? state.menu : state.menu.filter(p => (p.categoria || 'Sin categoría') === state.categoriaSeleccionada);
+        
+        productosMostrados.forEach(prod => {
             const item = document.createElement('div');
             item.className = 'producto-item';
             
-            // Identificar si existe pre-seleccionado en carrito
             const enCarritoObj = state.carritoActual.find(i => i.idProducto === prod.id);
-            const contador = enCarritoObj ? ` <span style="font-size:0.8rem; color:#666">x${enCarritoObj.cantidad}</span>` : '';
+            const qty = enCarritoObj ? enCarritoObj.cantidad : 0;
             
-            item.innerHTML = `
-                <div class="producto-info">
-                    <h3>${prod.nombre}${contador}</h3>
-                    <div class="producto-precio">$${prod.precio.toFixed(2)}</div>
-                </div>
-                <button class="add-btn" aria-label="Añadir">+</button>
-            `;
-
-            item.querySelector('.add-btn').addEventListener('click', () => agregarProducto(prod));
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'producto-info';
+            
+            const h3 = document.createElement('h3');
+            h3.textContent = prod.nombre;
+            const precioDiv = document.createElement('div');
+            precioDiv.className = 'producto-precio';
+            precioDiv.textContent = `$${prod.precio.toFixed(2)}`;
+            
+            infoDiv.appendChild(h3);
+            infoDiv.appendChild(precioDiv);
+            
+            const actionsDiv = document.createElement('div');
+            if (qty > 0) {
+                actionsDiv.className = 'stepper-controls';
+                
+                const btnMinus = document.createElement('button');
+                btnMinus.className = 'stepper-btn minus';
+                btnMinus.textContent = '-';
+                btnMinus.addEventListener('click', () => restarProducto(prod.id));
+                
+                const spanQty = document.createElement('span');
+                spanQty.textContent = qty;
+                
+                const btnPlus = document.createElement('button');
+                btnPlus.className = 'stepper-btn';
+                btnPlus.textContent = '+';
+                btnPlus.addEventListener('click', () => agregarProducto(prod));
+                
+                actionsDiv.appendChild(btnMinus);
+                actionsDiv.appendChild(spanQty);
+                actionsDiv.appendChild(btnPlus);
+            } else {
+                const btnAdd = document.createElement('button');
+                btnAdd.className = 'add-btn';
+                btnAdd.textContent = '+';
+                btnAdd.addEventListener('click', () => agregarProducto(prod));
+                actionsDiv.appendChild(btnAdd);
+            }
+            
+            item.appendChild(infoDiv);
+            item.appendChild(actionsDiv);
             productosContainer.appendChild(item);
         });
     }
@@ -114,6 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.mesaSeleccionada = idMesa;
         // Al interactuar con otra mesa, limpiamos el pedido activo temporar
         state.carritoActual = []; 
+        state.categoriaSeleccionada = 'Todas';
         actualizarTotal();
         
         renderMesas(); // Update visual state
@@ -137,10 +238,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         menuSection.classList.add('active');
+        renderCategories();
         renderMenu();
         
         // Auto scroll en móvil
         setTimeout(() => menuSection.scrollIntoView({ behavior: 'smooth' }), 100);
+    }
+
+    function restarProducto(idProducto) {
+        const itemExistente = state.carritoActual.find(i => i.idProducto === idProducto);
+        if (itemExistente) {
+            itemExistente.cantidad -= 1;
+            if (itemExistente.cantidad <= 0) {
+                state.carritoActual = state.carritoActual.filter(i => i.idProducto !== idProducto);
+            }
+        }
+        actualizarTotal();
+        renderMenu();
     }
 
     function agregarProducto(producto) {

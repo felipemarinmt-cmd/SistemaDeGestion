@@ -1,0 +1,74 @@
+.kds-body {
+    background: #0f172a; /* Fondo oscuro especial para la pantalla de cocina */
+    color: white;
+    font-family: 'Inter', system-ui, sans-serif;
+    margin: 0; padding: 0; height: 100vh; overflow: hidden;
+    display: flex; flex-direction: column;
+}
+
+.kds-header {
+    background: #1e293b;
+    padding: 1rem 2rem;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 2px solid #334155;
+}
+.kds-title { display: flex; align-items: center; gap: 10px; }
+.kds-title h2 { margin: 0; font-size: 1.5rem; font-weight: 700; color: #f8fafc; }
+.kds-title svg { color: #facc15; }
+
+.kds-board {
+    flex: 1; padding: 2rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+    overflow-y: auto;
+    align-content: flex-start;
+}
+
+/* Tickets de Comanda */
+.ticket {
+    background: #1e293b;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    border-top: 5px solid #3b82f6; /* Pendiente */
+    display: flex; flex-direction: column;
+    overflow: hidden; animation: slideInTicket 0.3s ease-out;
+}
+.ticket.preparando { border-top-color: #eab308; }
+
+.ticket-header {
+    padding: 1rem; background: rgba(0,0,0,0.2);
+    display: flex; justify-content: space-between; align-items: center;
+}
+.ticket-mesa { font-size: 1.4rem; font-weight: 800; color: #f8fafc; }
+.ticket-tiempo { font-size: 0.9rem; color: #94a3b8; font-weight: 600;}
+
+.ticket-items {
+    padding: 1rem; flex: 1;
+    list-style: none; margin: 0;
+}
+.ticket-items li {
+    font-size: 1.1rem; padding: 0.5rem 0; border-bottom: 1px dashed #334155;
+    color: #e2e8f0; display: flex; align-items: center; gap: 8px;
+}
+.ticket-items li:last-child { border-bottom: none; }
+.ticket-items li svg { color: #cbd5e1; flex-shrink: 0; }
+
+.ticket-actions {
+    padding: 1rem; background: rgba(0,0,0,0.3);
+    display: flex; gap: 10px;
+}
+.btn-kds {
+    flex: 1; padding: 0.8rem; border: none; border-radius: 8px;
+    font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+    color: white;
+}
+.btn-preparando { background: #ca8a04; }
+.btn-preparando:hover { background: #eab308; }
+.btn-listo { background: #16a34a; }
+.btn-listo:hover { background: #22c55e; }
+
+@keyframes slideInTicket {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}

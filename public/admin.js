@@ -31,11 +31,15 @@ window.addEventListener('load', () => {
     cargarDashboard();
     initSpaRouter();
     
-    // Auto-refresh data cada 10 seg
-    setInterval(() => {
+    // WebSockets para tiempo real (sustituye al Polling antiguo)
+    const socket = io();
+    socket.on('update_dashboard', () => {
         if(currentView === 'view-dashboard') cargarDashboard();
         if(currentView === 'view-reportes') cargarReportes();
-    }, 10000);
+    });
+    socket.on('update_menu', () => {
+        if(currentView === 'view-inventario') cargarInventario();
+    });
 });
 
 // Enrutador SPA
@@ -175,14 +179,29 @@ async function cargarInventario() {
         
         menu.forEach(item => {
             const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>#${item.id}</td>
-                <td><strong>${item.nombre}</strong></td>
-                <td>$${item.precio.toFixed(2)}</td>
-                <td>
-                    <button class="btn-eliminar" onclick="eliminarProducto(${item.id})">Eliminar</button>
-                </td>
-            `;
+            
+            const tdId = document.createElement('td'); tdId.textContent = `#${item.id}`;
+            const tdNombre = document.createElement('td'); 
+            const strong = document.createElement('strong'); strong.textContent = item.nombre;
+            tdNombre.appendChild(strong);
+            
+            const tdCat = document.createElement('td');
+            const spanCat = document.createElement('span');
+            spanCat.className = 'cat-chip';
+            spanCat.textContent = item.categoria || 'Sin categoría';
+            tdCat.appendChild(spanCat);
+
+            const tdPrecio = document.createElement('td'); tdPrecio.textContent = `$${item.precio.toFixed(2)}`;
+            
+            const tdAcciones = document.createElement('td');
+            tdAcciones.innerHTML = `<button class="btn-eliminar" onclick="eliminarProducto(${item.id})">Eliminar</button>`;
+
+            tr.appendChild(tdId);
+            tr.appendChild(tdNombre);
+            tr.appendChild(tdCat);
+            tr.appendChild(tdPrecio);
+            tr.appendChild(tdAcciones);
+
             tbody.appendChild(tr);
         });
     } catch(e) {
@@ -194,6 +213,7 @@ window.abrirModalNuevoProducto = function() {
     document.getElementById('modal-producto').classList.remove('oculto');
     document.getElementById('prod-nombre').value = '';
     document.getElementById('prod-precio').value = '';
+    document.getElementById('prod-categoria').value = 'Plato Principal';
     document.getElementById('prod-nombre').focus();
 }
 window.cerrarModal = function() {
@@ -202,8 +222,9 @@ window.cerrarModal = function() {
 window.guardarProducto = async function() {
     const nombre = document.getElementById('prod-nombre').value.trim();
     const precio = document.getElementById('prod-precio').value;
+    const categoria = document.getElementById('prod-categoria').value;
     
-    if(!nombre || !precio) {
+    if(!nombre || !precio || !categoria) {
         showToast('Llena todos los campos obligatorios', 'error');
         return;
     }
@@ -212,7 +233,7 @@ window.guardarProducto = async function() {
         const res = await fetch('/api/menu', {
             method: 'POST',
             headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ nombre, precio })
+            body: JSON.stringify({ nombre, precio, categoria })
         });
         if(res.ok) {
             showToast('Producto añadido exitosamente');
