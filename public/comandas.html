@@ -45,15 +45,10 @@
         <button class="enviar-comanda-btn" id="btn-enviar-comanda">Enviar Orden</button>
     </div>
 
-    <!-- Cargar lógica principal -->
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="app.js"></script>
-    <script>
-        // Validar que no se este usando en pantalla grande por error
-        if (window.innerWidth >= 768) {
-            console.warn("Estás en vista de escritorio. Redirigiendo a admin...");
-            window.location.href = 'admin.html';
-        }
-    </script>
+    <!-- Middleware de sesión y Roles -->
+    <script type="module" src="guard.js"></script>
+
+    <!-- Cargar lógica principal del POS -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -63,6 +63,14 @@
                                 <polyline points="17 6 23 6 23 12"></polyline>
                             </svg></span> Reportes
                     </li>
+                    <li class="nav-item" data-target="view-caja">
+                        <span class="icon" style="display:flex;"><svg width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                                <line x1="2" y1="10" x2="22" y2="10"></line>
+                            </svg></span> Caja
+                    </li>
                 </ul>
             </nav>
         </aside>
@@ -139,7 +147,7 @@
                             <h2>Gestión de Catálogo</h2>
                             <p class="subtitle">Agrega o elimina platillos del menú.</p>
                         </div>
-                        <button class="btn-primario style-action" onclick="abrirModalNuevoProducto()">+ Nuevo
+                        <button id="btn-nuevo-producto" class="btn-primario style-action">+ Nuevo
                             Producto</button>
                     </div>
                     <div class="table-wrapper mt-4">
@@ -182,6 +190,61 @@
                     </div>
                 </section>
             </div>
+
+            <!-- VISTA: CAJA (Corte Z) -->
+            <div id="view-caja" class="view-section oculto">
+                <section class="inventario-section animate-slide-up">
+                    <div id="caja-cerrada">
+                        <div style="text-align:center; padding:2rem;">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.5" style="margin-bottom:1rem;"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                            <h2 style="margin-bottom:0.5rem;">No hay turno de caja abierto</h2>
+                            <p class="subtitle" style="margin-bottom:1.5rem;">Abre la caja registrando la base de efectivo inicial para comenzar el turno.</p>
+                            <div style="max-width:320px; margin:0 auto;">
+                                <div class="form-group">
+                                    <label>Base de Efectivo Inicial ($):</label>
+                                    <input type="number" id="input-base-caja" placeholder="0.00" value="100" class="premium-input" step="0.50" style="font-size:1.3rem; text-align:center; font-weight:700;">
+                                </div>
+                                <button id="btn-abrir-caja" class="btn-primario" style="width:100%; padding:1rem; font-size:1.1rem;">Abrir Caja</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="caja-abierta" class="oculto">
+                        <div class="flex-header" style="margin-bottom:1.5rem;">
+                            <div>
+                                <h2>Turno de Caja Activo</h2>
+                                <p class="subtitle" id="caja-info-apertura"></p>
+                            </div>
+                            <button id="btn-corte-z" class="btn-primario" style="background:var(--danger);">Realizar Corte Z</button>
+                        </div>
+                        <div class="kpi-grid">
+                            <div class="kpi-card">
+                                <h3>Base Inicial</h3>
+                                <p id="caja-kpi-base" class="counter" style="color:#3b82f6;">$0.00</p>
+                            </div>
+                            <div class="kpi-card stat-ventas">
+                                <h3>Ventas Efectivo</h3>
+                                <p id="caja-kpi-efectivo" class="counter">$0.00</p>
+                            </div>
+                            <div class="kpi-card">
+                                <h3>Ventas Tarjeta</h3>
+                                <p id="caja-kpi-tarjeta" class="counter" style="color:var(--primary-action);">$0.00</p>
+                            </div>
+                            <div class="kpi-card">
+                                <h3>Total en Caja (Estimado)</h3>
+                                <p id="caja-kpi-total" class="counter" style="color:var(--accent-warning);">$0.00</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Resultado del Corte Z una vez cerrado -->
+                <div id="corte-z-resultado" class="oculto" style="margin-top:2rem;">
+                    <section class="inventario-section animate-slide-up">
+                        <h2 style="color:var(--success); margin-bottom:1rem;">✅ Corte Z Completado</h2>
+                        <div id="corte-z-detalle"></div>
+                    </section>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -207,15 +270,50 @@
                 <input type="number" step="0.5" id="prod-precio" placeholder="0.00" class="premium-input">
             </div>
             <div class="modal-actions">
-                <button class="btn-secundario" onclick="cerrarModal()">Cancelar</button>
-                <button class="btn-primario" onclick="guardarProducto()">Guardar</button>
+                <button id="btn-cancelar-producto" class="btn-secundario">Cancelar</button>
+                <button id="btn-guardar-producto" class="btn-primario">Guardar</button>
             </div>
         </div>
     </div>
 
-    <!-- Socket.io y Lógica -->
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="admin.js"></script>
+    <!-- Modal Checkout (Pago Dividido) -->
+    <div id="modal-checkout" class="modal-overlay oculto">
+        <div class="modal-content animate-pop" style="max-width:520px;">
+            <h2 style="margin-bottom:0.5rem;">💳 Cobrar Cuenta</h2>
+            <p id="checkout-mesa-label" style="color:#666; margin-bottom:1.5rem;">Mesa ---</p>
+            
+            <div style="background:#f0fdf4; border:2px solid #86efac; border-radius:12px; padding:1.2rem; text-align:center; margin-bottom:1.5rem;">
+                <div style="font-size:0.85rem; color:#666; text-transform:uppercase; letter-spacing:1px;">Total a Pagar</div>
+                <div id="checkout-total" style="font-size:2.5rem; font-weight:800; color:#16a34a;">$0.00</div>
+            </div>
+
+            <div class="form-group">
+                <label>Pago en Efectivo ($):</label>
+                <input type="number" id="checkout-efectivo" placeholder="0.00" class="premium-input" step="0.50" style="font-size:1.1rem;">
+            </div>
+            <div class="form-group">
+                <label>Pago con Tarjeta ($):</label>
+                <input type="number" id="checkout-tarjeta" placeholder="0.00" class="premium-input" step="0.50" style="font-size:1.1rem;">
+            </div>
+            
+            <div id="checkout-cambio-box" class="oculto" style="background:#fefce8; border:2px solid #fde047; border-radius:12px; padding:1rem; text-align:center; margin-bottom:1rem;">
+                <div style="font-size:0.8rem; color:#854d0e;">CAMBIO A DEVOLVER</div>
+                <div id="checkout-cambio" style="font-size:2rem; font-weight:800; color:#ca8a04;">$0.00</div>
+            </div>
+            <div id="checkout-error" style="color:var(--danger); font-weight:600; text-align:center; margin-bottom:0.5rem;"></div>
+
+            <div class="modal-actions">
+                <button id="btn-cancelar-checkout" class="btn-secundario">Cancelar</button>
+                <button id="btn-confirmar-cobro" class="btn-primario" style="background:var(--success);">Confirmar Cobro</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Middleware de sesión y Roles -->
+    <script type="module" src="guard.js"></script>
+
+    <!-- Lógica Admin (Serverless Supabase) -->
+    <script type="module" src="admin.js"></script>
 </body>
 
 </html>

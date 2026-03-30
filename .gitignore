@@ -1,0 +1,24 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno y credenciales (NUNCA subir a Git)
+.env
+.env.local
+.env.production
+public/config.js
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Supabase local
+.supabase/
