@@ -3,7 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cargando Sistema...</title>
+    <title>Punto de Venta</title>
+    <link rel="manifest" href="manifest.json">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW Fail:', err));
+            });
+        }
+    </script>
 </head>
 <body style="background-color: #F2E3B6; color: #262626; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh;">
     <h2>Cargando módulo correspondiente...</h2>

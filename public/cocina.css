@@ -72,3 +72,15 @@
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* Ticket nuevo — pulse de atención */
+.ticket-nuevo {
+    border-top-color: #22c55e !important;
+    animation: slideInTicket 0.3s ease-out, pulseNew 1.5s ease-in-out 3;
+}
+@keyframes pulseNew {
+    0%, 100% { box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    50% { box-shadow: 0 0 30px rgba(34, 197, 94, 0.4), 0 10px 25px rgba(0,0,0,0.5); }
+}
+
+.kds-status { font-size: 0.9rem; font-weight: 600; }

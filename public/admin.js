@@ -8,22 +8,31 @@ import {
     fetchComandasActivasMesa,
     fetchMenu, 
     crearProductoMenu, 
-    eliminarProductoMenu, 
+    eliminarProductoMenu,
+    actualizarProductoMenu,
     fetchHistorialComandas,
     abrirTurnoCaja,
     fetchTurnoActivo,
-    cerrarTurnoCaja
+    cerrarTurnoCaja,
+    fetchUsuarios,
+    crearUsuario,
+    actualizarRolUsuario,
+    toggleUsuarioActivo
 } from './api.js';
 
 import { imprimirReciboCliente } from './printer.js';
 import { escapeHtml } from './sanitize.js';
 import { showToast } from './ui.js';
+import { exportarPDF, exportarCSV } from './reports.js';
+import { debounce, calcularCambio } from './utils.js';
 
 // --- Estado interno del módulo ---
 let turnoActivo = null;
 let checkoutMesaId = null;
 let checkoutTotal = 0;
 let checkoutItems = []; // para el ticket
+let editandoProductoId = null; // null = crear, id = editar
+let historialCache = []; // cache para export PDF/CSV
 
 // showToast se importa desde ui.js (fuente única de verdad)
 window.showToast = showToast;
@@ -48,21 +57,17 @@ window.addEventListener('load', async () => {
     await cargarDashboard();
     await verificarTurnoActivo();
     
-    // Supabase Realtime
-    const channel = supabase.channel('admin-updates');
-    
-    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'comandas' }, () => {
+    // Supabase Realtime con Debounce
+    const channel = supabase.channel('backoffice-updates');
+    const debouncedRefresh = debounce(() => {
         if(currentView === 'view-dashboard') cargarDashboard();
         if(currentView === 'view-reportes') cargarReportes();
-    });
-    
-    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'mesas' }, () => {
-        if(currentView === 'view-dashboard') cargarDashboard();
-    });
-
-    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'menu' }, () => {
         if(currentView === 'view-inventario') cargarInventario();
-    });
+    }, 500);
+
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'comandas' }, debouncedRefresh);
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'mesas' }, debouncedRefresh);
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'menu' }, debouncedRefresh);
 
     channel.subscribe((status) => {
         if(status === 'SUBSCRIBED') {
@@ -107,6 +112,10 @@ function initSpaRouter() {
                 document.getElementById('page-title').textContent = "Control de Caja";
                 document.getElementById('page-subtitle').textContent = "Apertura de turno y Corte Z";
                 verificarTurnoActivo();
+            } else if (target === 'view-usuarios') {
+                document.getElementById('page-title').textContent = "Gestión de Usuarios";
+                document.getElementById('page-subtitle').textContent = "Administra el equipo de trabajo";
+                cargarUsuarios();
             }
         });
     });
@@ -204,6 +213,7 @@ async function abrirCheckoutHandler(mesaId, mesaNumero) {
     document.getElementById('checkout-mesa-label').textContent = `Mesa ${mesaNumero}`;
     document.getElementById('checkout-efectivo').value = '';
     document.getElementById('checkout-tarjeta').value = '';
+    document.getElementById('checkout-propina').value = '0';
     document.getElementById('checkout-error').textContent = '';
     document.getElementById('checkout-cambio-box').classList.add('oculto');
 
@@ -242,17 +252,21 @@ async function abrirCheckoutHandler(mesaId, mesaNumero) {
 function calcularCambioCheckout() {
     const efectivo = parseFloat(document.getElementById('checkout-efectivo').value) || 0;
     const tarjeta = parseFloat(document.getElementById('checkout-tarjeta').value) || 0;
-    const pagado = efectivo + tarjeta;
-    const cambio = pagado - checkoutTotal;
+    const propina = parseFloat(document.getElementById('checkout-propina').value) || 0;
     const cambioBox = document.getElementById('checkout-cambio-box');
     const errorBox = document.getElementById('checkout-error');
 
     errorBox.textContent = '';
+    if ((efectivo + tarjeta) === 0) {
+        cambioBox.classList.add('oculto');
+        return;
+    }
 
-    if (pagado > 0 && cambio >= 0) {
+    try {
+        const cambio = calcularCambio(checkoutTotal, propina, efectivo, tarjeta);
         cambioBox.classList.remove('oculto');
         document.getElementById('checkout-cambio').textContent = `$${cambio.toFixed(2)}`;
-    } else {
+    } catch (err) {
         cambioBox.classList.add('oculto');
     }
 }
@@ -267,19 +281,16 @@ function cerrarCheckout() {
 async function confirmarCobroHandler() {
     const efectivo = parseFloat(document.getElementById('checkout-efectivo').value) || 0;
     const tarjeta = parseFloat(document.getElementById('checkout-tarjeta').value) || 0;
-    const pagado = efectivo + tarjeta;
+    const propina = parseFloat(document.getElementById('checkout-propina').value) || 0;
     const errorBox = document.getElementById('checkout-error');
 
-    if (pagado < checkoutTotal) {
-        errorBox.textContent = `Monto insuficiente. Faltan $${(checkoutTotal - pagado).toFixed(2)} por cubrir.`;
-        return;
-    }
-    if (efectivo < 0 || tarjeta < 0) {
-        errorBox.textContent = 'Los montos de pago no pueden ser negativos.';
-        return;
-    }
-    if (pagado > 999999) {
-        errorBox.textContent = 'El monto ingresado es demasiado alto. Verifica los datos.';
+    errorBox.textContent = '';
+    let cambio = 0;
+
+    try {
+        cambio = calcularCambio(checkoutTotal, propina, efectivo, tarjeta);
+    } catch (err) {
+        errorBox.textContent = err.message;
         return;
     }
 
@@ -289,20 +300,20 @@ async function confirmarCobroHandler() {
 
     try {
         const turnoId = turnoActivo ? turnoActivo.id : null;
-        await cobrarMesaConPago(checkoutMesaId, efectivo, tarjeta, turnoId);
+        await cobrarMesaConPago(checkoutMesaId, efectivo, tarjeta, turnoId, propina);
         
-        const cambio = pagado - checkoutTotal;
+        const cambio = pagado - totalConPropina;
         let metodo = 'Efectivo';
         if (tarjeta > 0 && efectivo > 0) metodo = 'Mixto';
         else if (tarjeta > 0) metodo = 'Tarjeta';
 
         showToast(`¡Cobro exitoso! Cambio: $${cambio.toFixed(2)}`);
 
-        // Imprimir recibo de cliente
         imprimirReciboCliente({
             mesaNumero: document.getElementById('checkout-mesa-label').textContent.replace('Mesa ', ''),
             items: checkoutItems,
             total: checkoutTotal,
+            propina: propina,
             pagoEfectivo: efectivo,
             pagoTarjeta: tarjeta,
             metodo: metodo,
@@ -460,6 +471,17 @@ async function cargarInventario() {
             const tdPrecio = document.createElement('td'); tdPrecio.textContent = `$${item.precio.toFixed(2)}`;
             
             const tdAcciones = document.createElement('td');
+            tdAcciones.style.display = 'flex';
+            tdAcciones.style.gap = '0.5rem';
+
+            const btnEdit = document.createElement('button');
+            btnEdit.className = 'btn-eliminar';
+            btnEdit.style.background = '#e0f2fe';
+            btnEdit.style.color = '#0284c7';
+            btnEdit.textContent = 'Editar';
+            btnEdit.addEventListener('click', () => abrirModalEditarProducto(item));
+            tdAcciones.appendChild(btnEdit);
+
             const btnElim = document.createElement('button');
             btnElim.className = 'btn-eliminar';
             btnElim.textContent = 'Eliminar';
@@ -480,10 +502,22 @@ async function cargarInventario() {
 }
 
 function abrirModalNuevoProducto() {
+    editandoProductoId = null;
+    document.getElementById('modal-producto-titulo').textContent = 'Nuevo Producto';
     document.getElementById('modal-producto').classList.remove('oculto');
     document.getElementById('prod-nombre').value = '';
     document.getElementById('prod-precio').value = '';
     document.getElementById('prod-categoria').value = 'Plato Principal';
+    document.getElementById('prod-nombre').focus();
+}
+
+function abrirModalEditarProducto(item) {
+    editandoProductoId = item.id;
+    document.getElementById('modal-producto-titulo').textContent = 'Editar Producto';
+    document.getElementById('modal-producto').classList.remove('oculto');
+    document.getElementById('prod-nombre').value = item.nombre;
+    document.getElementById('prod-precio').value = item.precio;
+    document.getElementById('prod-categoria').value = item.categoria || 'Plato Principal';
     document.getElementById('prod-nombre').focus();
 }
 
@@ -510,11 +544,18 @@ async function guardarProducto() {
     }
     
     try {
-        await crearProductoMenu({ nombre, precio, categoria });
-        showToast('Producto añadido exitosamente');
+        if (editandoProductoId) {
+            await actualizarProductoMenu(editandoProductoId, { nombre, precio, categoria });
+            showToast('Producto actualizado exitosamente');
+        } else {
+            await crearProductoMenu({ nombre, precio, categoria });
+            showToast('Producto añadido exitosamente');
+        }
+        editandoProductoId = null;
         cerrarModal();
+        cargarInventario();
     } catch(e) {
-        showToast('Error añadiendo el producto', 'error');
+        showToast('Error guardando el producto', 'error');
     }
 }
 
@@ -534,6 +575,7 @@ async function eliminarProductoHandler(id) {
 async function cargarReportes() {
     try {
         const historial = await fetchHistorialComandas();
+        historialCache = historial;
         const tbody = document.getElementById('tabla-historial');
         if(!tbody) return;
 
@@ -567,6 +609,135 @@ async function cargarReportes() {
 }
 
 // =============================================
+// VISTA: USUARIOS (CRUD)
+// =============================================
+async function cargarUsuarios() {
+    try {
+        const usuarios = await fetchUsuarios();
+        const tbody = document.getElementById('tabla-usuarios-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (usuarios.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:2rem; color:#888;">No hay usuarios registrados.</td></tr>';
+            return;
+        }
+
+        const rolesLabels = { admin: 'Administrador', mesero: 'Mesero', cocinero: 'Cocinero' };
+        const rolesColors = { admin: '#7c3aed', mesero: '#0284c7', cocinero: '#ea580c' };
+
+        usuarios.forEach(usr => {
+            const tr = document.createElement('tr');
+
+            const tdNombre = document.createElement('td');
+            tdNombre.textContent = usr.nombre || '—';
+            tdNombre.style.fontWeight = '600';
+
+            const tdEmail = document.createElement('td');
+            tdEmail.textContent = usr.email;
+            tdEmail.style.color = '#666';
+
+            const tdRol = document.createElement('td');
+            const selectRol = document.createElement('select');
+            selectRol.className = 'premium-input';
+            selectRol.style.cssText = 'padding:4px 8px; font-size:0.85rem; width:auto; border-radius:8px;';
+            ['mesero', 'cocinero', 'admin'].forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r;
+                opt.textContent = rolesLabels[r];
+                if (r === usr.rol) opt.selected = true;
+                selectRol.appendChild(opt);
+            });
+            selectRol.addEventListener('change', async () => {
+                try {
+                    await actualizarRolUsuario(usr.id, selectRol.value);
+                    showToast(`Rol actualizado a ${rolesLabels[selectRol.value]}`);
+                } catch(e) {
+                    showToast('Error actualizando rol', 'error');
+                    selectRol.value = usr.rol;
+                }
+            });
+            tdRol.appendChild(selectRol);
+
+            const tdEstado = document.createElement('td');
+            const badge = document.createElement('span');
+            badge.className = 'cat-chip';
+            badge.style.cssText = usr.activo 
+                ? 'background:#dcfce7; color:#16a34a; border-color:#86efac;'
+                : 'background:#fee2e2; color:#dc2626; border-color:#fca5a5;';
+            badge.textContent = usr.activo ? 'Activo' : 'Inactivo';
+            tdEstado.appendChild(badge);
+
+            const tdAcciones = document.createElement('td');
+            const btnToggle = document.createElement('button');
+            btnToggle.className = 'btn-eliminar';
+            btnToggle.style.cssText = usr.activo
+                ? 'background:#fee2e2; color:#dc2626;'
+                : 'background:#dcfce7; color:#16a34a;';
+            btnToggle.textContent = usr.activo ? 'Desactivar' : 'Activar';
+            btnToggle.addEventListener('click', async () => {
+                try {
+                    await toggleUsuarioActivo(usr.id, !usr.activo);
+                    showToast(usr.activo ? 'Usuario desactivado' : 'Usuario activado');
+                    cargarUsuarios();
+                } catch(e) {
+                    showToast('Error cambiando estado', 'error');
+                }
+            });
+            tdAcciones.appendChild(btnToggle);
+
+            tr.appendChild(tdNombre);
+            tr.appendChild(tdEmail);
+            tr.appendChild(tdRol);
+            tr.appendChild(tdEstado);
+            tr.appendChild(tdAcciones);
+            tbody.appendChild(tr);
+        });
+    } catch(e) {
+        console.error(e);
+        showToast('Error cargando usuarios', 'error');
+    }
+}
+
+function abrirModalNuevoUsuario() {
+    document.getElementById('modal-usuario').classList.remove('oculto');
+    document.getElementById('usr-nombre').value = '';
+    document.getElementById('usr-email').value = '';
+    document.getElementById('usr-password').value = '';
+    document.getElementById('usr-rol').value = 'mesero';
+    document.getElementById('usr-email').focus();
+}
+
+function cerrarModalUsuario() {
+    document.getElementById('modal-usuario').classList.add('oculto');
+}
+
+async function guardarUsuarioHandler() {
+    const nombre = document.getElementById('usr-nombre').value.trim();
+    const email = document.getElementById('usr-email').value.trim();
+    const password = document.getElementById('usr-password').value;
+    const rol = document.getElementById('usr-rol').value;
+
+    if (!email || !password || !rol) {
+        showToast('Email, contraseña y rol son obligatorios', 'error');
+        return;
+    }
+    if (password.length < 6) {
+        showToast('La contraseña debe tener mínimo 6 caracteres', 'error');
+        return;
+    }
+
+    try {
+        await crearUsuario(email, password, rol, nombre);
+        showToast(`Usuario ${email} creado como ${rol}`);
+        cerrarModalUsuario();
+        cargarUsuarios();
+    } catch(e) {
+        showToast(e.message || 'Error creando usuario', 'error');
+    }
+}
+
+// =============================================
 // EVENT LISTENERS (reemplazan onclick inline)
 // =============================================
 document.getElementById('btn-nuevo-producto')?.addEventListener('click', abrirModalNuevoProducto);
@@ -578,3 +749,30 @@ document.getElementById('btn-cancelar-checkout')?.addEventListener('click', cerr
 document.getElementById('btn-confirmar-cobro')?.addEventListener('click', confirmarCobroHandler);
 document.getElementById('checkout-efectivo')?.addEventListener('input', calcularCambioCheckout);
 document.getElementById('checkout-tarjeta')?.addEventListener('input', calcularCambioCheckout);
+document.getElementById('btn-nuevo-usuario')?.addEventListener('click', abrirModalNuevoUsuario);
+document.getElementById('btn-cancelar-usuario')?.addEventListener('click', cerrarModalUsuario);
+document.getElementById('btn-guardar-usuario')?.addEventListener('click', guardarUsuarioHandler);
+document.getElementById('checkout-propina')?.addEventListener('input', calcularCambioCheckout);
+document.getElementById('btn-export-pdf')?.addEventListener('click', () => {
+    if (historialCache.length === 0) { showToast('No hay datos para exportar', 'error'); return; }
+    exportarPDF(historialCache);
+    showToast('PDF generado exitosamente');
+});
+document.getElementById('btn-export-csv')?.addEventListener('click', () => {
+    if (historialCache.length === 0) { showToast('No hay datos para exportar', 'error'); return; }
+    exportarCSV(historialCache);
+    showToast('CSV descargado exitosamente');
+});
+
+// Botones de propina rápida
+document.querySelectorAll('.btn-propina').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const pct = parseInt(btn.getAttribute('data-pct'));
+        const propina = pct > 0 ? (checkoutTotal * pct / 100) : 0;
+        document.getElementById('checkout-propina').value = propina.toFixed(2);
+        calcularCambioCheckout();
+        // Highlight botón activo
+        document.querySelectorAll('.btn-propina').forEach(b => b.style.borderColor = '#ccc');
+        btn.style.borderColor = 'var(--primary-action)';
+    });
+});

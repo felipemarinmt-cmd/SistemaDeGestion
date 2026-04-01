@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f172a">
     <title>Vista de Cocina - KDS</title>
+    <link rel="manifest" href="manifest.json">
     <!-- Reutilizamos las variables base y la inyección de UI moderna -->
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="cocina.css">
+    <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
 </head>
 <body class="kds-body">
     <header class="kds-header">
@@ -14,7 +17,10 @@
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             <h2>Cocina en Vivo (KDS)</h2>
         </div>
-        <div class="kds-status" id="status-indicador">Conectando...</div>
+        <div style="display:flex; align-items:center; gap:1rem;">
+            <button id="btn-toggle-sonido" title="Activar/Desactivar sonido" style="background:none; border:2px solid rgba(255,255,255,0.3); border-radius:8px; padding:6px 12px; color:white; cursor:pointer; font-size:1.2rem; transition:all 0.2s;">🔔</button>
+            <div class="kds-status" id="status-indicador">Conectando...</div>
+        </div>
     </header>
 
     <main class="kds-board" id="board-tickets">

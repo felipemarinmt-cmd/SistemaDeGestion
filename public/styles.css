@@ -60,6 +60,27 @@ body {
     100% { transform: scale(0.95); opacity: 0.8; }
 }
 
+/* SKELETON LOADING */
+.skeleton {
+    background: linear-gradient(90deg, rgba(255,255,255,0.4) 25%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0.4) 75%);
+    background-size: 400% 100%;
+    animation: skeletonLoading 1.5s infinite ease-in-out;
+    border-radius: 12px;
+}
+.skeleton-text { height: 1.5rem; width: 60%; background: rgba(0,0,0,0.1); border-radius: 6px; margin: 4px 0; animation: skeletonLoadingBg 1.5s infinite ease-in-out; }
+.skeleton-mesa { aspect-ratio: 1; border-radius: 20px; }
+
+@keyframes skeletonLoading {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+@keyframes skeletonLoadingBg {
+    0% { opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { opacity: 0.5; }
+}
+
+
 
 /* Base Mobile Layout */
 .mobile-container {

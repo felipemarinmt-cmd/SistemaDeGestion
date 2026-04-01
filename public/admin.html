@@ -4,9 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1e293b">
     <title>Dashboard Admin Premium</title>
+    <link rel="manifest" href="manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="admin.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
+    <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
 </head>
 
 <body>
@@ -70,6 +75,16 @@
                                 <rect x="2" y="5" width="20" height="14" rx="2"></rect>
                                 <line x1="2" y1="10" x2="22" y2="10"></line>
                             </svg></span> Caja
+                    </li>
+                    <li class="nav-item" data-target="view-usuarios">
+                        <span class="icon" style="display:flex;"><svg width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                            </svg></span> Usuarios
                     </li>
                 </ul>
             </nav>
@@ -173,6 +188,10 @@
                 <section class="inventario-section animate-slide-up">
                     <div class="flex-header">
                         <h2>Historial de Comandas Cobradas</h2>
+                        <div style="display:flex; gap:0.5rem;">
+                            <button id="btn-export-pdf" class="btn-primario" style="background:#dc2626; font-size:0.85rem; padding:0.5rem 1rem;">📄 PDF</button>
+                            <button id="btn-export-csv" class="btn-primario" style="background:#16a34a; font-size:0.85rem; padding:0.5rem 1rem;">📊 Excel</button>
+                        </div>
                     </div>
                     <div class="table-wrapper mt-4">
                         <table class="premium-table">
@@ -245,13 +264,40 @@
                     </section>
                 </div>
             </div>
+
+            <!-- VISTA: USUARIOS -->
+            <div id="view-usuarios" class="view-section oculto">
+                <section class="inventario-section animate-slide-up">
+                    <div class="flex-header" style="margin-bottom:1.5rem;">
+                        <div>
+                            <h2>Gestión de Equipo</h2>
+                            <p class="subtitle">Administra meseros, cocineros y administradores.</p>
+                        </div>
+                        <button id="btn-nuevo-usuario" class="btn-primario style-action">+ Nuevo Usuario</button>
+                    </div>
+                    <div class="table-wrapper mt-4">
+                        <table class="premium-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Email</th>
+                                    <th>Rol</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-usuarios-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
         </main>
     </div>
 
     <!-- Modal Nuevo Producto -->
     <div id="modal-producto" class="modal-overlay oculto">
         <div class="modal-content animate-pop">
-            <h2>Nuevo Producto</h2>
+            <h2 id="modal-producto-titulo">Nuevo Producto</h2>
             <div class="form-group">
                 <label>Nombre del Platillo:</label>
                 <input type="text" id="prod-nombre" placeholder="Ej. Tacos al Pastor" class="premium-input">
@@ -287,6 +333,18 @@
                 <div id="checkout-total" style="font-size:2.5rem; font-weight:800; color:#16a34a;">$0.00</div>
             </div>
 
+            <!-- Propina -->
+            <div style="margin-bottom:1.5rem;">
+                <label style="display:block; margin-bottom:0.5rem; font-weight:600; color:#444; font-size:0.95rem;">Propina:</label>
+                <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+                    <button class="btn-propina btn-secundario" data-pct="10" style="flex:1; padding:0.5rem; font-size:0.9rem;">10%</button>
+                    <button class="btn-propina btn-secundario" data-pct="15" style="flex:1; padding:0.5rem; font-size:0.9rem;">15%</button>
+                    <button class="btn-propina btn-secundario" data-pct="20" style="flex:1; padding:0.5rem; font-size:0.9rem;">20%</button>
+                    <button class="btn-propina btn-secundario" data-pct="0" style="flex:1; padding:0.5rem; font-size:0.9rem;">Sin propina</button>
+                </div>
+                <input type="number" id="checkout-propina" placeholder="0.00" class="premium-input" step="0.50" style="font-size:1rem;" value="0">
+            </div>
+
             <div class="form-group">
                 <label>Pago en Efectivo ($):</label>
                 <input type="number" id="checkout-efectivo" placeholder="0.00" class="premium-input" step="0.50" style="font-size:1.1rem;">
@@ -305,6 +363,37 @@
             <div class="modal-actions">
                 <button id="btn-cancelar-checkout" class="btn-secundario">Cancelar</button>
                 <button id="btn-confirmar-cobro" class="btn-primario" style="background:var(--success);">Confirmar Cobro</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nuevo Usuario -->
+    <div id="modal-usuario" class="modal-overlay oculto">
+        <div class="modal-content animate-pop">
+            <h2>Nuevo Usuario</h2>
+            <div class="form-group">
+                <label>Nombre Completo:</label>
+                <input type="text" id="usr-nombre" placeholder="Ej. Juan Pérez" class="premium-input">
+            </div>
+            <div class="form-group">
+                <label>Correo Electrónico:</label>
+                <input type="email" id="usr-email" placeholder="Ej. mesero1@restaurante.com" class="premium-input">
+            </div>
+            <div class="form-group">
+                <label>Contraseña Temporal:</label>
+                <input type="text" id="usr-password" placeholder="Mínimo 6 caracteres" class="premium-input">
+            </div>
+            <div class="form-group">
+                <label>Rol:</label>
+                <select id="usr-rol" class="premium-input">
+                    <option value="mesero">Mesero</option>
+                    <option value="cocinero">Cocinero</option>
+                    <option value="admin">Administrador</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button id="btn-cancelar-usuario" class="btn-secundario">Cancelar</button>
+                <button id="btn-guardar-usuario" class="btn-primario">Crear Usuario</button>
             </div>
         </div>
     </div>

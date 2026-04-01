@@ -87,7 +87,7 @@ export async function fetchCuentaPrevia(mesaId) {
     return { total: sumatoria, detalles: data };
 }
 
-export async function cobrarMesaConPago(mesaId, pagoEfectivo, pagoTarjeta, turnoId = null) {
+export async function cobrarMesaConPago(mesaId, pagoEfectivo, pagoTarjeta, turnoId = null, propina = 0) {
     // Determinar método de pago
     let metodo = 'Efectivo';
     if (pagoTarjeta > 0 && pagoEfectivo > 0) metodo = 'Mixto';
@@ -98,7 +98,8 @@ export async function cobrarMesaConPago(mesaId, pagoEfectivo, pagoTarjeta, turno
         estado: 'Pagada', 
         pago_efectivo: pagoEfectivo, 
         pago_tarjeta: pagoTarjeta, 
-        metodo_pago: metodo 
+        metodo_pago: metodo,
+        propina: propina
     };
     if (turnoId) updatePayload.turno_id = turnoId;
 
@@ -172,7 +173,7 @@ export async function fetchTurnoActivo() {
 export async function cerrarTurnoCaja(turnoId) {
     // Buscar todas las comandas pagadas vinculadas a este turno
     const { data: comandasTurno, error: errCmd } = await supabase.from('comandas')
-        .select('total, pago_efectivo, pago_tarjeta, metodo_pago')
+        .select('total, pago_efectivo, pago_tarjeta, metodo_pago, propina')
         .eq('turno_id', turnoId)
         .eq('estado', 'Pagada');
     
@@ -180,9 +181,11 @@ export async function cerrarTurnoCaja(turnoId) {
 
     let totalEfectivo = 0;
     let totalTarjeta = 0;
+    let totalPropinas = 0;
     (comandasTurno || []).forEach(c => {
         totalEfectivo += c.pago_efectivo || 0;
         totalTarjeta += c.pago_tarjeta || 0;
+        totalPropinas += c.propina || 0;
     });
 
     const { data, error } = await supabase.from('turnos')
@@ -190,13 +193,14 @@ export async function cerrarTurnoCaja(turnoId) {
             estado: 'Cerrado',
             efectivo_cierre: totalEfectivo,
             tarjeta_cierre: totalTarjeta,
+            propinas_cierre: totalPropinas,
             fecha_cierre: new Date().toISOString()
         })
         .eq('id', turnoId)
         .select();
     
     if (error) throw error;
-    return { turno: data[0], totalEfectivo, totalTarjeta, totalVentas: totalEfectivo + totalTarjeta };
+    return { turno: data[0], totalEfectivo, totalTarjeta, totalPropinas, totalVentas: totalEfectivo + totalTarjeta };
 }
 
 export async function fetchDashboardResumen() {
@@ -275,4 +279,73 @@ export async function loginWithEmail(email, password) {
 
 export async function logout() {
     return await supabase.auth.signOut();
+}
+
+// --- Funciones de Gestión de Usuarios (Admin) ---
+
+// Cliente secundario sin sesión persistente para crear usuarios sin afectar la sesión del admin
+const signupClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false }
+});
+
+export async function fetchUsuarios() {
+    const { data, error } = await supabase.from('usuarios')
+        .select('*')
+        .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+}
+
+export async function crearUsuario(email, password, rol, nombre = '') {
+    // 1. Crear cuenta en auth (con cliente secundario, no afecta sesión admin)
+    const { data: authData, error: authError } = await signupClient.auth.signUp({
+        email,
+        password,
+        options: { data: { rol } }
+    });
+    if (authError) throw authError;
+
+    // 2. Insertar/actualizar en tabla usuarios con el rol (el trigger ya crea con 'mesero')
+    if (authData.user) {
+        const { error: dbError } = await supabase.from('usuarios')
+            .upsert({ 
+                id: authData.user.id, 
+                email, 
+                rol, 
+                nombre,
+                activo: true 
+            });
+        if (dbError) throw dbError;
+    }
+
+    return authData;
+}
+
+export async function actualizarRolUsuario(userId, nuevoRol) {
+    const { data, error } = await supabase.from('usuarios')
+        .update({ rol: nuevoRol })
+        .eq('id', userId)
+        .select();
+    if (error) throw error;
+    return data;
+}
+
+export async function toggleUsuarioActivo(userId, activo) {
+    const { data, error } = await supabase.from('usuarios')
+        .update({ activo })
+        .eq('id', userId)
+        .select();
+    if (error) throw error;
+    return data;
+}
+
+// --- Funciones de Inventario Extendidas ---
+
+export async function actualizarProductoMenu(id, cambios) {
+    const { data, error } = await supabase.from('menu')
+        .update(cambios)
+        .eq('id', id)
+        .select();
+    if (error) throw error;
+    return data;
 }

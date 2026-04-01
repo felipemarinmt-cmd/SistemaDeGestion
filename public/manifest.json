@@ -1,0 +1,17 @@
+{
+  "name": "Restaurante POS Premium",
+  "short_name": "RestoPOS",
+  "start_url": "/login.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#1e293b",
+  "description": "Punto de Venta Profesional para Restaurantes Serverless",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3268/3268800.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

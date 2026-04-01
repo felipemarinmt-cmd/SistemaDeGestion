@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "seed": "node --experimental-modules scripts/seed.js"
+    "seed": "node --experimental-modules scripts/seed.js",
+    "test": "vitest run"
   },
   "keywords": ["pos", "restaurante", "supabase"],
   "author": "",

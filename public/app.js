@@ -2,7 +2,8 @@
 
 import { state, mutators } from './state.js';
 import { fetchMesas, fetchMenu, fetchCuentaPrevia, enviarComanda, actualizarEstadoMesa, supabase } from './api.js';
-import { renderMesas, renderCategories, renderMenu, showToast } from './ui.js';
+import { renderMesas, renderCategories, renderMenu, showToast, renderSkeletonsMesas, renderSkeletonsMenu } from './ui.js';
+import { debounce } from './utils.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const mesaActivaLabel = document.getElementById('mesa-activa-label');
@@ -32,6 +33,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         try {
+            // Mostrar Skeletons
+            renderSkeletonsMesas(6);
+            renderSkeletonsMenu(4);
+
             const [mesas, menu] = await Promise.all([fetchMesas(), fetchMenu()]);
             mutators.setMesas(mesas || []);
             mutators.setMenu(menu || []);
@@ -39,14 +44,15 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (statusIndicador) statusIndicador.innerHTML = navigator.onLine ? `<span style="color:#4ade80">● Conectado</span>` : `<span style="color:#ef4444">● Offline</span>`;
         } catch (error) {
+            console.error(error);
             showToast('Error de red inicial', 'error');
+            if (statusIndicador) statusIndicador.innerHTML = `<span style="color:#ef4444">● Offline</span>`;
         }
 
-        // Supabase Realtime
+        // Supabase Realtime con Debounce para evitar ráfagas
         const channel = supabase.channel('pos-updates');
-        channel.on('postgres_changes', { event: '*', schema: 'public', table: 'mesas' }, () => {
-            softRefreshMesas();
-        });
+        const debouncedRefresh = debounce(softRefreshMesas, 500);
+        channel.on('postgres_changes', { event: '*', schema: 'public', table: 'mesas' }, debouncedRefresh);
         channel.subscribe();
         window.addEventListener('beforeunload', () => channel.unsubscribe());
 

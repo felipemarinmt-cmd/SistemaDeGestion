@@ -1,11 +1,7 @@
 // printer.js - Módulo de Impresión Térmica (80mm / 58mm)
 // Genera HTML formateado para impresoras térmicas y lanza la ventana nativa de impresión.
 
-const NOMBRE_RESTAURANTE = 'Mi Restaurante';
-const DIRECCION = 'Calle Principal #123';
-const TELEFONO = 'Tel: (555) 123-4567';
-const MENSAJE_PIE = '¡Gracias por su preferencia!';
-
+import { NOMBRE_RESTAURANTE, DIRECCION, TELEFONO, MENSAJE_PIE, LOGO_URL } from './config.js';
 import { escapeHtml } from './sanitize.js';
 
 /**
@@ -46,7 +42,7 @@ export function imprimirTicketCocina(pedido) {
 
 /**
  * Imprime un recibo de cliente (ticket fiscal/cuenta).
- * @param {{ mesaNumero: number, items: Array<{nombre:string, cantidad:number, precio:number}>, total:number, pagoEfectivo:number, pagoTarjeta:number, metodo:string, cambio:number, fecha:string }} cuenta
+ * @param {{ mesaNumero: number, items: Array<{nombre:string, cantidad:number, precio:number}>, total:number, propina:number, pagoEfectivo:number, pagoTarjeta:number, metodo:string, cambio:number, fecha:string }} cuenta
  */
 export function imprimirReciboCliente(cuenta) {
     const itemsHtml = cuenta.items.map(i => `
@@ -65,6 +61,7 @@ export function imprimirReciboCliente(cuenta) {
     <div style="width:72mm; font-family:'Courier New',monospace; padding:4mm;">
         <!-- Cabecera del Restaurante -->
         <div style="text-align:center; margin-bottom:10px;">
+            ${LOGO_URL ? `<img src="${LOGO_URL}" style="max-width:150px; margin-bottom:5px;" alt="Logo" />` : ''}
             <div style="font-size:16px; font-weight:bold; letter-spacing:1px;">${NOMBRE_RESTAURANTE}</div>
             <div style="font-size:10px; color:#555;">${DIRECCION}</div>
             <div style="font-size:10px; color:#555;">${TELEFONO}</div>
@@ -84,9 +81,19 @@ export function imprimirReciboCliente(cuenta) {
 
         <!-- Totales -->
         <div style="border-top:2px solid #000; padding-top:6px;">
-            <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:bold;">
-                <span>TOTAL</span>
+            <div style="display:flex; justify-content:space-between; font-size:14px;">
+                <span>Subtotal</span>
                 <span>$${cuenta.total.toFixed(2)}</span>
+            </div>
+            ${cuenta.propina > 0 ? `
+            <div style="display:flex; justify-content:space-between; font-size:14px; margin-top:2px;">
+                <span>Propina</span>
+                <span>$${cuenta.propina.toFixed(2)}</span>
+            </div>
+            ` : ''}
+            <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:bold; margin-top:6px; border-top:1px dashed #000; padding-top:4px;">
+                <span>TOTAL</span>
+                <span>$${(cuenta.total + (cuenta.propina || 0)).toFixed(2)}</span>
             </div>
         </div>
 

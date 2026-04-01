@@ -11,6 +11,8 @@ export function showToast(message, type = 'success', persist = false) {
     }
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
     
     const iconSuccess = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
     const iconError = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`;
@@ -29,6 +31,31 @@ export function showToast(message, type = 'success', persist = false) {
         }, 4000);
     }
     return toast; // Retorna por si queremos eliminarlo manual
+}
+
+export function renderSkeletonsMesas(count = 6) {
+    const mesasContainer = document.getElementById('mesas-container');
+    if(!mesasContainer) return;
+    mesasContainer.innerHTML = Array(count).fill(
+        `<div class="mesa-btn skeleton skeleton-mesa">
+             <div class="skeleton-text"></div>
+             <div class="skeleton-text" style="width: 40%"></div>
+         </div>`
+    ).join('');
+}
+
+export function renderSkeletonsMenu(count = 4) {
+    const productosContainer = document.getElementById('productos-container');
+    if(!productosContainer) return;
+    productosContainer.innerHTML = Array(count).fill(
+        `<div class="producto-item skeleton" style="height: 80px;">
+            <div style="flex:1">
+                <div class="skeleton-text"></div>
+                <div class="skeleton-text" style="width: 30%"></div>
+            </div>
+            <div style="width: 40px; height: 40px; border-radius:12px; background: rgba(0,0,0,0.1)"></div>
+        </div>`
+    ).join('');
 }
 
 export function renderMesas(onSeleccionarMesa) {
@@ -51,6 +78,8 @@ export function renderMesas(onSeleccionarMesa) {
         const btn = document.createElement('button');
         btn.className = `mesa-btn`;
         btn.style.borderLeft = `5px solid ${col}`;
+        btn.setAttribute('tabindex', '0');
+        btn.setAttribute('aria-label', `Mesa ${mesa.numero}, estado: ${estadoLabel}`);
         
         if (state.mesaSeleccionada === mesa.id) {
             btn.classList.add('mesa-seleccionada');
@@ -65,6 +94,12 @@ export function renderMesas(onSeleccionarMesa) {
         `;
 
         btn.addEventListener('click', () => onSeleccionarMesa(mesa));
+        btn.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSeleccionarMesa(mesa);
+            }
+        });
         mesasContainer.appendChild(btn);
     });
 }
@@ -119,14 +154,17 @@ export function renderMenu(onAgregar, onRestar) {
             const btnMinus = document.createElement('button');
             btnMinus.className = 'stepper-btn minus';
             btnMinus.textContent = '-';
+            btnMinus.setAttribute('aria-label', `Restar ${prod.nombre}`);
             btnMinus.addEventListener('click', () => onRestar(prod.id));
             
             const spanQty = document.createElement('span');
             spanQty.textContent = qty;
+            spanQty.setAttribute('aria-live', 'polite');
             
             const btnPlus = document.createElement('button');
             btnPlus.className = 'stepper-btn';
             btnPlus.textContent = '+';
+            btnPlus.setAttribute('aria-label', `Sumar ${prod.nombre}`);
             btnPlus.addEventListener('click', () => onAgregar(prod));
             
             actionsDiv.appendChild(btnMinus);
@@ -136,6 +174,7 @@ export function renderMenu(onAgregar, onRestar) {
             const btnAdd = document.createElement('button');
             btnAdd.className = 'add-btn';
             btnAdd.textContent = '+';
+            btnAdd.setAttribute('aria-label', `Agregar ${prod.nombre}`);
             btnAdd.addEventListener('click', () => onAgregar(prod));
             actionsDiv.appendChild(btnAdd);
         }
